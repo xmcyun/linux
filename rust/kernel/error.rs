@@ -58,6 +58,7 @@ pub mod code {
     declare_err!(EPIPE, "Broken pipe.");
     declare_err!(EDOM, "Math argument out of domain of func.");
     declare_err!(ERANGE, "Math result not representable.");
+    declare_err!(ENOPARAM, "Parameter not supported.");
 }
 
 /// Generic integer kernel error.
