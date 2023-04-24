@@ -214,7 +214,7 @@ impl FileDescriptorReservation {
         // SAFETY: FFI call, there are no safety requirements on `flags`.
         let fd = unsafe { bindings::get_unused_fd_flags(flags) };
         if fd < 0 {
-            return Err(Error::from_kernel_errno(fd));
+            return Err(Error::from_errno(fd));
         }
         Ok(Self { fd: fd as _ })
     }
