@@ -17,7 +17,6 @@ use core::time::Duration;
 use core::{
     cell::UnsafeCell, marker::PhantomData, marker::PhantomPinned, ops::Deref, pin::Pin, ptr,
 };
-
 use macros::vtable;
 
 pub mod param;
