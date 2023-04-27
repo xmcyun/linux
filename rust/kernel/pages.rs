@@ -5,8 +5,8 @@
 //! TODO: This module is a work in progress.
 
 use crate::{
-    bindings, error::code::*, io_buffer::IoBufferReader, user_ptr::UserSlicePtrReader, error::Result,
-    PAGE_SIZE,
+    bindings, error::code::*, error::Result, io_buffer::IoBufferReader,
+    user_ptr::UserSlicePtrReader, PAGE_SIZE,
 };
 use core::{marker::PhantomData, ptr};
 

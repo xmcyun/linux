@@ -7,8 +7,8 @@
 use crate::{
     bindings,
     error::code::*,
-    io_buffer::{IoBufferReader, IoBufferWriter},
     error::Result,
+    io_buffer::{IoBufferReader, IoBufferWriter},
 };
 
 /// Wraps the kernel's `struct iov_iter`.
