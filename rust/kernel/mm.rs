@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/linux/mm.h`](../../../../include/linux/mm.h)
 
-use crate::{bindings, pages, error::to_result, error::Result};
+use crate::{bindings, error::to_result, error::Result, pages};
 
 /// Virtual memory.
 pub mod virt {

@@ -2,9 +2,9 @@
 
 //! Rust file system sample.
 
+use kernel::module_fs;
 use kernel::prelude::*;
 use kernel::{c_str, file, fs, io_buffer::IoBufferWriter};
-use kernel::module_fs;
 
 module_fs! {
     type: RustFs,
