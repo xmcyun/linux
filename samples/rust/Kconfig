@@ -48,6 +48,14 @@ config SAMPLE_PUZZLEFS
 	  To compile this as a module, choose M here:
 	  the module will be called puzzlefs.
 
+config SAMPLE_RUST_SERDE
+	tristate "Serde"
+	help
+	  This option builds the Rust `serde` sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_serde.
+
 	  If unsure, say N.
 
 config SAMPLE_RUST_HOSTPROGS

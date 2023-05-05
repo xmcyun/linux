@@ -178,3 +178,4 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
 ///
 /// [`PAGE_SHIFT`]: ../../../include/asm-generic/page.h
 pub const PAGE_SIZE: usize = 1 << bindings::PAGE_SHIFT;
+pub mod test_serde;
