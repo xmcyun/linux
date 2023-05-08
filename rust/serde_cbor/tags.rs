@@ -129,7 +129,9 @@ impl<'de, T: Deserialize<'de>> Visitor<'de> for MaybeTaggedVisitor<T> {
     delegate!(visit_u32, u32);
     delegate!(visit_u64, u64);
 
+    #[cfg(not(no_fp_fmt_parse))]
     delegate!(visit_f32, f32);
+    #[cfg(not(no_fp_fmt_parse))]
     delegate!(visit_f64, f64);
 
     delegate!(visit_char, char);

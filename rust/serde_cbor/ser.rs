@@ -10,6 +10,7 @@ pub use crate::write::IoWrite;
 pub use crate::write::{SliceWrite, Write};
 
 use crate::error::{Error, Result};
+#[cfg(not(no_fp_fmt_parse))]
 use half::f16;
 use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
@@ -311,6 +312,7 @@ where
 
     #[inline]
     #[allow(clippy::float_cmp)]
+    #[cfg(not(no_fp_fmt_parse))]
     fn serialize_f32(self, value: f32) -> Result<()> {
         if value.is_infinite() {
             if value.is_sign_positive() {
@@ -334,6 +336,7 @@ where
 
     #[inline]
     #[allow(clippy::float_cmp)]
+    #[cfg(not(no_fp_fmt_parse))]
     fn serialize_f64(self, value: f64) -> Result<()> {
         if !value.is_finite() || f64::from(value as f32) == value {
             self.serialize_f32(value as f32)

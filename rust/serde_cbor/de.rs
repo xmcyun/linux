@@ -2,10 +2,12 @@
 
 //! Deserialization.
 
+#[cfg(not(no_fp_fmt_parse))]
 use core::f32;
 use core::marker::PhantomData;
 use core::result;
 use core::str;
+#[cfg(not(no_fp_fmt_parse))]
 use half::f16;
 use serde::de;
 #[cfg(feature = "std")]
@@ -566,14 +568,17 @@ where
         })
     }
 
+    #[cfg(not(no_fp_fmt_parse))]
     fn parse_f16(&mut self) -> Result<f32> {
         Ok(f32::from(f16::from_bits(self.parse_u16()?)))
     }
 
+    #[cfg(not(no_fp_fmt_parse))]
     fn parse_f32(&mut self) -> Result<f32> {
         self.parse_u32().map(|i| f32::from_bits(i))
     }
 
+    #[cfg(not(no_fp_fmt_parse))]
     fn parse_f64(&mut self) -> Result<f64> {
         self.parse_u64().map(|i| f64::from_bits(i))
     }
@@ -756,14 +761,17 @@ where
             0xf6 => visitor.visit_unit(),
             0xf7 => visitor.visit_unit(),
             0xf8 => Err(self.error(ErrorCode::UnassignedCode)),
+            #[cfg(not(no_fp_fmt_parse))]
             0xf9 => {
                 let value = self.parse_f16()?;
                 visitor.visit_f32(value)
             }
+            #[cfg(not(no_fp_fmt_parse))]
             0xfa => {
                 let value = self.parse_f32()?;
                 visitor.visit_f32(value)
             }
+            #[cfg(not(no_fp_fmt_parse))]
             0xfb => {
                 let value = self.parse_f64()?;
                 visitor.visit_f64(value)
