@@ -7,6 +7,8 @@
 
 use kernel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
+use serde_cbor::ser::SliceWrite;
+use serde::Serialize;
 
 module! {
     type: RustSerde,
@@ -38,6 +40,57 @@ struct S {
     d: (),
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct User {
+    user_id: u32,
+    password_hash: [u8; 4],
+}
+
+fn cbor_serialize() -> Result<(), serde_cbor::Error> {
+    let mut buf = [0u8; 100];
+    let writer = SliceWrite::new(&mut buf[..]);
+    let mut ser = serde_cbor::Serializer::new(writer);
+    let user = User {
+        user_id: 42,
+        password_hash: [1, 2, 3, 4],
+    };
+    user.serialize(&mut ser)?;
+    let writer = ser.into_inner();
+    let size = writer.bytes_written();
+    let expected = [
+        0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
+        0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
+        0x68, 0x84, 0x1, 0x2, 0x3, 0x4
+    ];
+    assert_eq!(&buf[..size], expected);
+
+    crate::pr_info!("cbor serialized = {:?}", buf);
+
+    Ok(())
+}
+
+fn cbor_deserialize() -> Result<(), serde_cbor::Error> {
+    let value = [
+        0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
+        0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
+        0x68, 0x84, 0x1, 0x2, 0x3, 0x4
+    ];
+
+    // from_slice_with_scratch will not alter input data, use it whenever you
+    // borrow from somewhere else.
+    // You will have to size your scratch according to the input data you
+    // expect.
+    let mut scratch = [0u8; 32];
+    let user: User = serde_cbor::de::from_slice_with_scratch(&value[..], &mut scratch)?;
+    assert_eq!(user, User {
+        user_id: 42,
+        password_hash: [1, 2, 3, 4],
+    });
+
+    crate::pr_info!("cbor deserialized = {:?}", user);
+    Ok(())
+}
+
 impl kernel::Module for RustSerde {
     fn init(_module: &'static ThisModule) -> Result<Self> {
         pr_info!("Rust serde sample (init)\n");
@@ -61,6 +114,9 @@ impl kernel::Module for RustSerde {
 
         let deserialized: S = local_data_format::from_bytes(&serialized).unwrap();
         crate::pr_info!("deserialized (local) = {:?}", deserialized);
+
+        cbor_serialize().unwrap();
+        cbor_deserialize().unwrap();
 
         Ok(RustSerde)
     }
