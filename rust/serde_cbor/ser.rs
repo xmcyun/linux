@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Serialize a Rust data structure to CBOR data.
 
 #[cfg(feature = "alloc")]

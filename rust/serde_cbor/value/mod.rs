@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! CBOR values, keys and serialization routines.
 
 mod de;

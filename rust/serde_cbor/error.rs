@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! When serializing or deserializing CBOR goes wrong.
 use core::fmt;
 use core::result;

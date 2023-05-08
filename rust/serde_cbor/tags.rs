@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Support for cbor tags
 use core::fmt;
 use core::marker::PhantomData;
