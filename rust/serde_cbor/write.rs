@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(not(feature = "std"))]
