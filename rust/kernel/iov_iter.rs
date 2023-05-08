@@ -23,7 +23,7 @@ pub struct IovIter {
 impl IovIter {
     fn common_len(&self) -> usize {
         // SAFETY: `IovIter::ptr` is guaranteed to be valid by the type invariants.
-        unsafe { (*self.ptr).count }
+        unsafe { (*self.ptr).__bindgen_anon_2.__bindgen_anon_1.count }
     }
 
     /// Constructs a new [`struct iov_iter`] wrapper.

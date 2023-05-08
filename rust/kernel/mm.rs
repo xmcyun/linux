@@ -38,7 +38,7 @@ pub mod virt {
         /// The possible flags are a combination of the constants in [`flags`].
         pub fn flags(&self) -> usize {
             // SAFETY: `self.vma` is valid by the type invariants.
-            unsafe { (*self.vma).__bindgen_anon_1.vm_flags as _ }
+            unsafe { (*self.vma).__bindgen_anon_2.vm_flags as _ }
         }
 
         /// Sets the flags associated with the virtual memory area.
@@ -46,19 +46,19 @@ pub mod virt {
         /// The possible flags are a combination of the constants in [`flags`].
         pub fn set_flags(&mut self, flags: usize) {
             // SAFETY: `self.vma` is valid by the type invariants.
-            unsafe { (*self.vma).__bindgen_anon_1.vm_flags = flags as _ };
+            unsafe { (*self.vma).__bindgen_anon_2.vm_flags = flags as _ };
         }
 
         /// Returns the start address of the virtual memory area.
         pub fn start(&self) -> usize {
             // SAFETY: `self.vma` is valid by the type invariants.
-            unsafe { (*self.vma).vm_start as _ }
+            unsafe { (*self.vma).__bindgen_anon_1.__bindgen_anon_1.vm_start as _ }
         }
 
         /// Returns the end address of the virtual memory area.
         pub fn end(&self) -> usize {
             // SAFETY: `self.vma` is valid by the type invariants.
-            unsafe { (*self.vma).vm_end as _ }
+            unsafe { (*self.vma).__bindgen_anon_1.__bindgen_anon_1.vm_end as _ }
         }
 
         /// Maps a single page at the given address within the virtual memory area.
