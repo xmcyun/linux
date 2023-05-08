@@ -1853,6 +1853,7 @@ rustfmt:
 		-o -path $(abs_srctree)/rust/syn -prune \
 		-o -path $(abs_srctree)/rust/serde -prune \
 		-o -path $(abs_srctree)/rust/serde_derive -prune \
+		-o -path $(abs_srctree)/rust/serde_cbor -prune \
 		-o -path $(abs_objtree)/rust/test -prune \
 		| grep -Fv $(abs_srctree)/rust/alloc \
 		| grep -Fv $(abs_srctree)/rust/proc-macro2 \
@@ -1860,6 +1861,7 @@ rustfmt:
 		| grep -Fv $(abs_srctree)/rust/syn \
 		| grep -Fv $(abs_srctree)/rust/serde \
 		| grep -Fv $(abs_srctree)/rust/serde_derive \
+		| grep -Fv $(abs_srctree)/rust/serde_cbor \
 		| grep -Fv $(abs_objtree)/rust/test \
 		| grep -Fv generated \
 		| xargs $(RUSTFMT) $(rustfmt_flags)
