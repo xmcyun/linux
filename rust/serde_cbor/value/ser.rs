@@ -101,11 +101,13 @@ impl serde::Serializer for Serializer {
     }
 
     #[inline]
+    #[cfg(not(no_fp_fmt_parse))]
     fn serialize_f32(self, value: f32) -> Result<Value, Error> {
         self.serialize_f64(f64::from(value))
     }
 
     #[inline]
+    #[cfg(not(no_fp_fmt_parse))]
     fn serialize_f64(self, value: f64) -> Result<Value, Error> {
         Ok(Value::Float(value))
     }
