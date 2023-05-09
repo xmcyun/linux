@@ -131,6 +131,8 @@ serde_cbor-flags := \
     --edition=2018 \
     -Amissing_docs \
     --cfg no_fp_fmt_parse \
+    --cfg 'feature="kernel_alloc"' \
+    --extern alloc \
     --extern serde
 
 quiet_cmd_rustdoc = RUSTDOC $(if $(rustdoc_host),H, ) $<

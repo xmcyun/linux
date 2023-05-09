@@ -324,7 +324,7 @@
 #[cfg(all(not(feature = "std"), test))]
 extern crate std;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "kernel_alloc"))]
 extern crate alloc;
 
 pub mod de;
