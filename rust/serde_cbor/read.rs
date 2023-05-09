@@ -2,6 +2,8 @@
 
 #[cfg(feature = "alloc")]
 use alloc::{vec, vec::Vec};
+#[cfg(feature = "kernel_alloc")]
+use alloc::{vec::Vec};
 #[cfg(feature = "std")]
 use core::cmp;
 use core::mem;
@@ -298,7 +300,7 @@ where
 }
 
 /// A CBOR input source that reads from a slice of bytes.
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 #[derive(Debug)]
 pub struct SliceRead<'a> {
     slice: &'a [u8],
@@ -306,13 +308,16 @@ pub struct SliceRead<'a> {
     index: usize,
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 impl<'a> SliceRead<'a> {
     /// Creates a CBOR input source to read from a slice of bytes.
     pub fn new(slice: &'a [u8]) -> SliceRead<'a> {
         SliceRead {
             slice,
+            #[cfg(not(feature = "kernel_alloc"))]
             scratch: vec![],
+            #[cfg(feature = "kernel_alloc")]
+            scratch: Vec::new(),
             index: 0,
         }
     }
@@ -328,7 +333,7 @@ impl<'a> SliceRead<'a> {
     }
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 impl<'a> Offset for SliceRead<'a> {
     #[inline]
     fn byte_offset(&self) -> usize {
@@ -337,12 +342,12 @@ impl<'a> Offset for SliceRead<'a> {
 }
 
 #[cfg(all(
-    any(feature = "std", feature = "alloc"),
+    any(feature = "std", feature = "alloc", feature = "kernel_alloc"),
     not(feature = "unsealed_read_write")
 ))]
 impl<'a> private::Sealed for SliceRead<'a> {}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 impl<'a> Read<'a> for SliceRead<'a> {
     #[inline]
     fn next(&mut self) -> Result<Option<u8>> {
@@ -371,7 +376,10 @@ impl<'a> Read<'a> for SliceRead<'a> {
     fn read_to_buffer(&mut self, n: usize) -> Result<()> {
         let end = self.end(n)?;
         let slice = &self.slice[self.index..end];
+        #[cfg(not(feature = "kernel_alloc"))]
         self.scratch.extend_from_slice(slice);
+        #[cfg(feature = "kernel_alloc")]
+        self.scratch.try_extend_from_slice(slice).unwrap();
         self.index = end;
 
         Ok(())

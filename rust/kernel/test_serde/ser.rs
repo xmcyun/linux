@@ -454,10 +454,7 @@ fn test_struct() {
         b: bool,
     }
 
-    let test = Test {
-        a: (),
-        b: false,
-    };
+    let test = Test { a: (), b: false };
 
     let mut expected = Vec::new();
     expected.try_push(2).unwrap();

@@ -21,7 +21,7 @@ pub use crate::read::EitherLifetime;
 #[cfg(feature = "std")]
 pub use crate::read::IoRead;
 use crate::read::Offset;
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
 #[cfg(feature = "tags")]
@@ -47,7 +47,7 @@ use crate::tags::set_tag;
 /// let value: &str = de::from_slice(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 pub fn from_slice<'a, T>(slice: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
@@ -150,7 +150,7 @@ where
     }
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 impl<'a> Deserializer<SliceRead<'a>> {
     /// Constructs a `Deserializer` which reads from a slice.
     ///

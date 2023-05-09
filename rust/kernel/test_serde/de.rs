@@ -434,9 +434,6 @@ fn test_struct() {
     }
 
     let j = &[2, 0, 1, 0, 3];
-    let expected = Test {
-        a: (),
-        b: false,
-    };
+    let expected = Test { a: (), b: false };
     assert_eq!(expected, from_bytes(j).unwrap());
 }
