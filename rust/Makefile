@@ -120,7 +120,9 @@ serde-skip_flags := \
 
 serde-flags := \
     -Amissing_docs \
-    --cfg no_fp_fmt_parse
+    --cfg no_fp_fmt_parse \
+    --cfg 'feature="kernel_alloc"' \
+    --extern alloc
 
 serde_cbor-skip_flags := \
     --edition=2021 \

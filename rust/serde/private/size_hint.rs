@@ -9,7 +9,7 @@ where
     helper(iter.size_hint())
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 #[inline]
 pub fn cautious(hint: Option<usize>) -> usize {
     cmp::min(hint.unwrap_or(0), 4096)

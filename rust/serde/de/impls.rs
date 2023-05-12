@@ -11,8 +11,11 @@ use de::MapAccess;
 
 use seed::InPlaceSeed;
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 use __private::size_hint;
+
+#[cfg(feature = "kernel_alloc")]
+use alloc::vec::Vec;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1012,7 +1015,7 @@ seq_impl!(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "alloc", feature = "kernel_alloc"))]
 impl<'de, T> Deserialize<'de> for Vec<T>
 where
     T: Deserialize<'de>,
@@ -1039,10 +1042,16 @@ where
             where
                 A: SeqAccess<'de>,
             {
+                #[cfg(not(feature = "kernel_alloc"))]
                 let mut values = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+                #[cfg(feature = "kernel_alloc")]
+                let mut values = Vec::try_with_capacity(size_hint::cautious(seq.size_hint())).unwrap();
 
                 while let Some(value) = try!(seq.next_element()) {
+                    #[cfg(not(feature = "kernel_alloc"))]
                     values.push(value);
+                    #[cfg(feature = "kernel_alloc")]
+                    values.try_push(value).unwrap();
                 }
 
                 Ok(values)
@@ -1077,7 +1086,10 @@ where
             {
                 let hint = size_hint::cautious(seq.size_hint());
                 if let Some(additional) = hint.checked_sub(self.0.len()) {
+                    #[cfg(not(feature = "kernel_alloc"))]
                     self.0.reserve(additional);
+                    #[cfg(feature = "kernel_alloc")]
+                    self.0.try_reserve(additional).unwrap();
                 }
 
                 for i in 0..self.0.len() {
@@ -1092,7 +1104,10 @@ where
                 }
 
                 while let Some(value) = try!(seq.next_element()) {
+                    #[cfg(not(feature = "kernel_alloc"))]
                     self.0.push(value);
+                    #[cfg(feature = "kernel_alloc")]
+                    self.0.try_push(value).unwrap();
                 }
 
                 Ok(())

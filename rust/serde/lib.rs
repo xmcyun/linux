@@ -158,7 +158,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "kernel_alloc"))]
 extern crate alloc;
 
 /// A facade around all the types we need from the `std`, `core`, and `alloc`
