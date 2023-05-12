@@ -6,6 +6,8 @@ use kernel::module_fs;
 use kernel::prelude::*;
 use kernel::{c_str, file, fs, io_buffer::IoBufferWriter};
 
+mod puzzle;
+
 module_fs! {
     type: PuzzleFs,
     name: "puzzlefs",

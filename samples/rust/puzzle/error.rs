@@ -1,0 +1,32 @@
+use core::fmt::{self, Display};
+
+// TODO use String in error types (when it's available from the kernel)
+
+pub(crate) enum WireFormatError {
+    LocalRefError,
+    SeekOtherError,
+    ValueMissing,
+    CBORError(serde_cbor::Error),
+}
+
+impl Display for WireFormatError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WireFormatError::LocalRefError => f.write_str("cannot turn local ref into a digest"),
+            WireFormatError::SeekOtherError => f.write_str("cannot seek to other blob"),
+            WireFormatError::ValueMissing => f.write_str("no value present"),
+            WireFormatError::CBORError(_) => f.write_str("CBOR error"),
+        }
+    }
+}
+
+pub(crate) type Result<T> = kernel::error::Result<T, WireFormatError>;
+
+// TODO figure out how to use thiserror
+#[allow(unused_qualifications)]
+impl core::convert::From<serde_cbor::Error> for WireFormatError {
+    #[allow(deprecated)]
+    fn from(source: serde_cbor::Error) -> Self {
+        WireFormatError::CBORError(source)
+    }
+}
