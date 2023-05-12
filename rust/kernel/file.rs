@@ -17,10 +17,11 @@ use crate::{
     types::ARef,
     types::AlwaysRefCounted,
     types::ForeignOwnable,
+    types::Opaque,
     user_ptr::{UserSlicePtr, UserSlicePtrReader, UserSlicePtrWriter},
 };
 use core::convert::{TryFrom, TryInto};
-use core::{cell::UnsafeCell, marker, mem, ptr};
+use core::{marker, mem, ptr};
 use macros::vtable;
 
 /// Flags associated with a [`File`].
@@ -113,7 +114,7 @@ pub mod flags {
 /// Instances of this type are always ref-counted, that is, a call to `get_file` ensures that the
 /// allocation remains valid at least until the matching call to `fput`.
 #[repr(transparent)]
-pub struct File(pub(crate) UnsafeCell<bindings::file>);
+pub struct File(pub(crate) Opaque<bindings::file>);
 
 // TODO: Accessing fields of `struct file` through the pointer is UB because other threads may be
 // writing to them. However, this is how the C code currently operates: naked reads and writes to
