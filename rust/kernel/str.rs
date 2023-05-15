@@ -236,6 +236,12 @@ impl fmt::Display for CStr {
     }
 }
 
+impl fmt::Debug for CString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
 impl fmt::Debug for CStr {
     /// Formats printable ASCII characters with a double quote on either end, escaping the rest.
     ///
