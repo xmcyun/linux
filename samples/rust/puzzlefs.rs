@@ -7,16 +7,16 @@ use kernel::prelude::*;
 use kernel::{c_str, file, fs, io_buffer::IoBufferWriter};
 
 module_fs! {
-    type: RustFs,
+    type: PuzzleFs,
     name: "puzzlefs",
     author: "Ariel Miculas",
     license: "GPL",
 }
 
-struct RustFs;
+struct PuzzleFs;
 
 #[vtable]
-impl fs::Context<Self> for RustFs {
+impl fs::Context<Self> for PuzzleFs {
     type Data = ();
 
     kernel::define_fs_params! {(),
@@ -39,7 +39,7 @@ impl fs::Context<Self> for RustFs {
     }
 }
 
-impl fs::Type for RustFs {
+impl fs::Type for PuzzleFs {
     type Context = Self;
     type INodeData = &'static [u8];
     const SUPER_TYPE: fs::Super = fs::Super::Independent;
@@ -97,7 +97,7 @@ impl file::Operations for FsFile {
         offset: u64,
     ) -> Result<usize> {
         file::read_from_slice(
-            file.inode::<RustFs>().ok_or(EINVAL)?.fs_data(),
+            file.inode::<PuzzleFs>().ok_or(EINVAL)?.fs_data(),
             writer,
             offset,
         )
