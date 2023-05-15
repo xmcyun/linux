@@ -4,7 +4,7 @@
 
 use kernel::module_fs;
 use kernel::prelude::*;
-use kernel::{c_str, file, fs, io_buffer::IoBufferWriter};
+use kernel::{c_str, file, fs, io_buffer::IoBufferWriter, fmt, str::CString};
 
 mod puzzle;
 
@@ -16,6 +16,11 @@ module_fs! {
 }
 
 struct PuzzleFs;
+
+#[derive(Debug)]
+struct PuzzlefsInfo {
+    base_path: CString,
+}
 
 #[vtable]
 impl fs::Context<Self> for PuzzleFs {
@@ -44,14 +49,17 @@ impl fs::Context<Self> for PuzzleFs {
 impl fs::Type for PuzzleFs {
     type Context = Self;
     type INodeData = &'static [u8];
+    type Data = Box<PuzzlefsInfo>;
     const SUPER_TYPE: fs::Super = fs::Super::Independent;
     const NAME: &'static CStr = c_str!("puzzlefs");
     const FLAGS: i32 = fs::flags::USERNS_MOUNT;
     const DCACHE_BASED: bool = true;
 
     fn fill_super(_data: (), sb: fs::NewSuperBlock<'_, Self>) -> Result<&fs::SuperBlock<Self>> {
+        let base_path = CString::try_from_fmt(fmt!("hello world"))?;
+        pr_info!("base_path {:?}\n", base_path);
         let sb = sb.init(
-            (),
+            Box::try_new(PuzzlefsInfo { base_path })?,
             &fs::SuperParams {
                 magic: 0x72757374,
                 ..fs::SuperParams::DEFAULT
@@ -87,8 +95,15 @@ struct FsFile;
 #[vtable]
 impl file::Operations for FsFile {
     type OpenData = &'static [u8];
+    type FSData = Box<PuzzlefsInfo>;
 
-    fn open(_context: &Self::OpenData, _file: &file::File) -> Result<Self::Data> {
+    fn open(
+        fs_info: &PuzzlefsInfo,
+        _context: &Self::OpenData,
+        _file: &file::File,
+    ) -> Result<Self::Data> {
+        pr_info!("got {:?}\n", fs_info);
+
         Ok(())
     }
 

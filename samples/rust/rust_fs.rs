@@ -86,7 +86,7 @@ struct FsFile;
 impl file::Operations for FsFile {
     type OpenData = &'static [u8];
 
-    fn open(_context: &Self::OpenData, _file: &file::File) -> Result<Self::Data> {
+    fn open(_fs_info: (), _context: &Self::OpenData, _file: &file::File) -> Result<Self::Data> {
         Ok(())
     }
 
