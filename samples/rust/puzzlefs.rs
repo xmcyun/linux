@@ -3,8 +3,14 @@
 //! Rust file system sample.
 
 use kernel::module_fs;
+use kernel::mount::Vfsmount;
 use kernel::prelude::*;
-use kernel::{c_str, file, fs, io_buffer::IoBufferWriter, fmt, str::CString};
+use kernel::{
+    c_str, file, fmt, fs,
+    io_buffer::IoBufferWriter,
+    str::CString,
+    sync::{Arc, ArcBorrow},
+};
 
 mod puzzle;
 
@@ -20,6 +26,7 @@ struct PuzzleFs;
 #[derive(Debug)]
 struct PuzzlefsInfo {
     base_path: CString,
+    vfs_mount: Arc<Vfsmount>,
 }
 
 #[vtable]
@@ -58,8 +65,14 @@ impl fs::Type for PuzzleFs {
     fn fill_super(_data: (), sb: fs::NewSuperBlock<'_, Self>) -> Result<&fs::SuperBlock<Self>> {
         let base_path = CString::try_from_fmt(fmt!("hello world"))?;
         pr_info!("base_path {:?}\n", base_path);
+        let vfs_mount = Vfsmount::new_private_mount(c_str!("/home/puzzlefs_oci"))?;
+        pr_info!("vfs_mount {:?}\n", vfs_mount);
+
         let sb = sb.init(
-            Box::try_new(PuzzlefsInfo { base_path })?,
+            Box::try_new(PuzzlefsInfo {
+                base_path,
+                vfs_mount: Arc::try_new(vfs_mount)?,
+            })?,
             &fs::SuperParams {
                 magic: 0x72757374,
                 ..fs::SuperParams::DEFAULT
@@ -94,29 +107,36 @@ struct FsFile;
 
 #[vtable]
 impl file::Operations for FsFile {
+    // must be the same as INodeData
     type OpenData = &'static [u8];
     type FSData = Box<PuzzlefsInfo>;
+    // this is an Arc because Data must be ForeignOwnable and the only implementors of it are Box,
+    // Arc and (); we cannot pass a reference to read, so we share Vfsmount using and Arc
+    type Data = Arc<Vfsmount>;
 
     fn open(
         fs_info: &PuzzlefsInfo,
         _context: &Self::OpenData,
         _file: &file::File,
     ) -> Result<Self::Data> {
-        pr_info!("got {:?}\n", fs_info);
-
-        Ok(())
+        Ok(fs_info.vfs_mount.clone())
     }
 
     fn read(
-        _data: (),
-        file: &file::File,
+        data: ArcBorrow<'_, Vfsmount>,
+        _file: &file::File,
         writer: &mut impl IoBufferWriter,
         offset: u64,
     ) -> Result<usize> {
-        file::read_from_slice(
-            file.inode::<PuzzleFs>().ok_or(EINVAL)?.fs_data(),
-            writer,
-            offset,
-        )
+        let mut buf = Vec::try_with_capacity(writer.len())?;
+        buf.try_resize(writer.len(), 0)?;
+        let file = file::File::from_path_in_root_mnt(
+            &data,
+            c_str!("data"),
+            file::flags::O_RDONLY.try_into().unwrap(),
+            0,
+        )?;
+        let nr_bytes_read = file.read_with_offset(&mut buf[..], offset)?;
+        file::read_from_slice(&buf[..nr_bytes_read], writer, 0)
     }
 }
