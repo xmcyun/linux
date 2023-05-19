@@ -133,76 +133,6 @@ impl File {
         Ok(unsafe { ARef::from_raw(ptr.cast()) })
     }
 
-    /// Constructs a new [`struct file`] wrapper from a path.
-    pub fn from_path(filename: &CStr, flags: i32, mode: u16) -> Result<ARef<Self>> {
-        let file_ptr = unsafe {
-            from_err_ptr(bindings::filp_open(
-                filename.as_ptr() as *const i8,
-                flags,
-                mode,
-            ))?
-        };
-        let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
-
-        // SAFETY: `filp_open` initializes the refcount with 1
-        Ok(unsafe { ARef::from_raw(file_ptr.cast()) })
-    }
-
-    /// Constructs a new [`struct file`] wrapper from a path and a vfsmount.
-    pub fn from_path_in_root_mnt(
-        mount: &Vfsmount,
-        filename: &CStr,
-        flags: i32,
-        mode: u16,
-    ) -> Result<ARef<Self>> {
-        let file_ptr = unsafe {
-            let mnt = mount.get();
-            let raw_path = bindings::path {
-                mnt,
-                dentry: (*mnt).mnt_root,
-            };
-            from_err_ptr(bindings::file_open_root(
-                &raw_path,
-                filename.as_ptr() as *const i8,
-                flags,
-                mode,
-            ))?
-        };
-        let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
-
-        // SAFETY: `file_open_root` increments the refcount before returning. (TODO does it?)
-        Ok(unsafe { ARef::from_raw(file_ptr.cast()) })
-    }
-
-    /// Read from the file into the specified buffer
-    pub fn read_with_offset(&self, buf: &mut [u8], offset: u64) -> Result<usize> {
-        Ok(unsafe {
-            // kernel_read_file expects a pointer to a "void *" buffer
-            let mut ptr_to_buf = buf.as_mut_ptr() as *mut core::ffi::c_void;
-            // Unless we give a non-null pointer to the file size:
-            // 1. we cannot give a non-zero value for the offset
-            // 2. we cannot have offset 0 and buffer_size > file_size
-            let mut file_size = 0;
-
-            // SAFETY: all the pointers to kernel_read_file are valid
-            let result = bindings::kernel_read_file(
-                self.0.get(),
-                offset.try_into()?,
-                &mut ptr_to_buf,
-                buf.len(),
-                &mut file_size,
-                bindings::kernel_read_file_id_READING_UNKNOWN,
-            );
-
-            // kernel_read_file returns the number of bytes read on success or negative on error.
-            if result < 0 {
-                return Err(Error::from_errno(result.try_into()?));
-            }
-
-            result.try_into()?
-        })
-    }
-
     /// Creates a reference to a [`File`] from a valid pointer.
     ///
     /// # Safety
@@ -270,6 +200,80 @@ unsafe impl AlwaysRefCounted for File {
     unsafe fn dec_ref(obj: ptr::NonNull<Self>) {
         // SAFETY: The safety requirements guarantee that the refcount is nonzero.
         unsafe { bindings::fput(obj.cast().as_ptr()) }
+    }
+}
+
+/// A newtype over file, specific to regular files
+pub struct RegularFile(ARef<File>);
+impl RegularFile {
+    /// Constructs a new [`struct file`] wrapper from a path.
+    pub fn from_path(filename: &CStr, flags: i32, mode: u16) -> Result<Self> {
+        let file_ptr = unsafe {
+            from_err_ptr(bindings::filp_open(
+                filename.as_ptr() as *const i8,
+                flags,
+                mode,
+            ))?
+        };
+        let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
+
+        // SAFETY: `filp_open` initializes the refcount with 1
+        Ok(RegularFile(unsafe { ARef::from_raw(file_ptr.cast()) }))
+    }
+
+    /// Constructs a new [`struct file`] wrapper from a path and a vfsmount.
+    pub fn from_path_in_root_mnt(
+        mount: &Vfsmount,
+        filename: &CStr,
+        flags: i32,
+        mode: u16,
+    ) -> Result<Self> {
+        let file_ptr = unsafe {
+            let mnt = mount.get();
+            let raw_path = bindings::path {
+                mnt,
+                dentry: (*mnt).mnt_root,
+            };
+            from_err_ptr(bindings::file_open_root(
+                &raw_path,
+                filename.as_ptr() as *const i8,
+                flags,
+                mode,
+            ))?
+        };
+        let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
+
+        // SAFETY: `file_open_root` increments the refcount before returning. (TODO does it?)
+        Ok(RegularFile(unsafe { ARef::from_raw(file_ptr.cast()) }))
+    }
+
+    /// Read from the file into the specified buffer
+    pub fn read_with_offset(&self, buf: &mut [u8], offset: u64) -> Result<usize> {
+        Ok(unsafe {
+            // kernel_read_file expects a pointer to a "void *" buffer
+            let mut ptr_to_buf = buf.as_mut_ptr() as *mut core::ffi::c_void;
+            // Unless we give a non-null pointer to the file size:
+            // 1. we cannot give a non-zero value for the offset
+            // 2. we cannot have offset 0 and buffer_size > file_size
+            let mut file_size = 0;
+
+            // SAFETY: all the pointers to kernel_read_file are valid
+            let result = bindings::kernel_read_file(
+                self.0 .0.get(),
+                offset.try_into()?,
+                &mut ptr_to_buf,
+                buf.len(),
+                &mut file_size,
+                bindings::kernel_read_file_id_READING_UNKNOWN,
+            );
+
+            // kernel_read_file returns the number of bytes read on success or negative on error.
+            if result < 0 {
+                return Err(Error::from_errno(result.try_into()?));
+            }
+
+            result.try_into()?
+        })
     }
 }
 
