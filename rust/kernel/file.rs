@@ -287,6 +287,11 @@ impl RegularFile {
             result.try_into()?
         })
     }
+
+    /// Get the current file position
+    pub fn get_pos(&self) -> u64 {
+        self.0.pos()
+    }
 }
 
 /// A file descriptor reservation.
