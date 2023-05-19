@@ -130,7 +130,7 @@ impl file::Operations for FsFile {
     ) -> Result<usize> {
         let mut buf = Vec::try_with_capacity(writer.len())?;
         buf.try_resize(writer.len(), 0)?;
-        let file = file::File::from_path_in_root_mnt(
+        let file = file::RegularFile::from_path_in_root_mnt(
             &data,
             c_str!("data"),
             file::flags::O_RDONLY.try_into().unwrap(),
