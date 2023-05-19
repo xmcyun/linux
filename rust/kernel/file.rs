@@ -206,8 +206,21 @@ unsafe impl AlwaysRefCounted for File {
 /// A newtype over file, specific to regular files
 pub struct RegularFile(ARef<File>);
 impl RegularFile {
+    fn create_if_regular(file_ptr: ptr::NonNull<bindings::file>) -> Result<RegularFile> {
+        // make sure the file is a regular file
+        // TODO: create a helper function
+        // SAFETY: we have a NonNull pointer
+        unsafe {
+            let inode = core::ptr::addr_of!((*file_ptr.as_ptr()).f_inode).read();
+            if bindings::S_IFMT & ((*inode).i_mode) as u32 != bindings::S_IFREG {
+                return Err(EINVAL);
+            }
+        }
+        Ok(RegularFile(unsafe { ARef::from_raw(file_ptr.cast()) }))
+    }
     /// Constructs a new [`struct file`] wrapper from a path.
     pub fn from_path(filename: &CStr, flags: i32, mode: u16) -> Result<Self> {
+        // SAFETY: `filp_open` initializes the refcount with 1
         let file_ptr = unsafe {
             from_err_ptr(bindings::filp_open(
                 filename.as_ptr() as *const i8,
@@ -217,8 +230,7 @@ impl RegularFile {
         };
         let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
 
-        // SAFETY: `filp_open` initializes the refcount with 1
-        Ok(RegularFile(unsafe { ARef::from_raw(file_ptr.cast()) }))
+        Self::create_if_regular(file_ptr)
     }
 
     /// Constructs a new [`struct file`] wrapper from a path and a vfsmount.
@@ -228,6 +240,7 @@ impl RegularFile {
         flags: i32,
         mode: u16,
     ) -> Result<Self> {
+        // SAFETY: `file_open_root` increments the refcount before returning. (TODO does it?)
         let file_ptr = unsafe {
             let mnt = mount.get();
             let raw_path = bindings::path {
@@ -243,8 +256,7 @@ impl RegularFile {
         };
         let file_ptr = ptr::NonNull::new(file_ptr).ok_or(ENOENT)?;
 
-        // SAFETY: `file_open_root` increments the refcount before returning. (TODO does it?)
-        Ok(RegularFile(unsafe { ARef::from_raw(file_ptr.cast()) }))
+        Self::create_if_regular(file_ptr)
     }
 
     /// Read from the file into the specified buffer
