@@ -18,6 +18,7 @@ pub(crate) enum WireFormatError {
     InvalidImageVersion,
     InvalidFsVerityData,
     CBORError(serde_cbor::Error),
+    KernelError(kernel::error::Error),
 }
 
 impl Display for WireFormatError {
@@ -30,6 +31,7 @@ impl Display for WireFormatError {
             WireFormatError::InvalidImageVersion => f.write_str("invalid image version"),
             WireFormatError::InvalidFsVerityData => f.write_str("invalid fs verity data"),
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
+            WireFormatError::KernelError(_) => f.write_str("Kernel error"),
         }
     }
 }
@@ -42,5 +44,13 @@ impl core::convert::From<serde_cbor::Error> for WireFormatError {
     #[allow(deprecated)]
     fn from(source: serde_cbor::Error) -> Self {
         WireFormatError::CBORError(source)
+    }
+}
+
+#[allow(unused_qualifications)]
+impl core::convert::From<kernel::error::Error> for WireFormatError {
+    #[allow(deprecated)]
+    fn from(source: kernel::error::Error) -> Self {
+        WireFormatError::KernelError(source)
     }
 }
