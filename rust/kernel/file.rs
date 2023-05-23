@@ -204,6 +204,40 @@ unsafe impl AlwaysRefCounted for File {
     }
 }
 
+/// adapted from https://doc.rust-lang.org/std/io/trait.Read.html
+pub trait Read {
+    // Required method
+    /// Pull some bytes from this source into the specified buffer, returning how many bytes were read.
+    /// See https://doc.rust-lang.org/std/io/trait.Read.html#tymethod.read for details
+    /// This is the equivalent of read from std::io::Read::read, but in kernel space instead of user space
+    /// The buffer is a kernel-allocated buffer
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
+
+    // Provided methods
+
+    // Implementation adapted from https://github.com/rust-lang/rust/blob/80917360d350fb55aebf383e7ff99efea41f63fd/library/std/src/io/mod.rs#L465
+    /// Read the exact number of bytes required to fill buf.
+    /// See https://doc.rust-lang.org/std/io/trait.Read.html#method.read_exact for details
+    fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<()> {
+        while !buf.is_empty() {
+            match self.read(buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let tmp = buf;
+                    buf = &mut tmp[n..];
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        if !buf.is_empty() {
+            Err(EINVAL)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// A newtype over file, specific to regular files
 pub struct RegularFile(ARef<File>);
 impl RegularFile {
@@ -343,6 +377,14 @@ impl RegularFile {
 
         // we just checked that offset is non negative
         Ok(offset as u64)
+    }
+}
+
+impl Read for &mut RegularFile {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let nr_bytes_read = self.read_with_offset(buf, self.get_pos())?;
+        self.update_pos(SeekFrom::Current(nr_bytes_read.try_into()?))?;
+        Ok(nr_bytes_read)
     }
 }
 
