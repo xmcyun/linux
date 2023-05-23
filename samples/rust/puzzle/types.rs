@@ -1,5 +1,4 @@
 use crate::puzzle::error::WireFormatError;
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::mem::size_of;
 use serde::de::Error as SerdeError;
@@ -8,7 +7,8 @@ use serde::{Deserialize, Deserializer};
 use serde_derive::Deserialize;
 mod cbor_helpers;
 use crate::puzzle::error::Result;
-pub(crate) use cbor_helpers::cbor_size_of_list_header;
+pub(crate) use cbor_helpers::{cbor_get_array_size, cbor_size_of_list_header};
+use kernel::file;
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct InodeAdditional {
@@ -26,9 +26,10 @@ pub(crate) struct Xattr {
     pub(crate) val: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub(crate) struct MetadataBlob {
-    mmapped_region: Box<[u8]>,
-    inode_count: usize,
+    pub(crate) mmapped_region: Vec<u8>,
+    pub(crate) inode_count: usize,
 }
 
 fn read_one_from_slice<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Result<T> {
@@ -116,6 +117,15 @@ impl<'de> Deserialize<'de> for BlobRef {
 }
 
 impl MetadataBlob {
+    pub(crate) fn new(mut f: file::RegularFile) -> Result<MetadataBlob> {
+        let inodes_count = cbor_get_array_size(&mut f)? as usize;
+        let mmapped_region = f.read_to_end()?;
+        Ok(MetadataBlob {
+            mmapped_region,
+            inode_count: inodes_count,
+        })
+    }
+
     pub(crate) fn seek_ref(&mut self, r: &BlobRef) -> Result<u64> {
         match r.kind {
             BlobRefKind::Other { .. } => Err(WireFormatError::SeekOtherError),
