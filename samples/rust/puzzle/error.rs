@@ -7,6 +7,7 @@ pub(crate) enum WireFormatError {
     SeekOtherError,
     ValueMissing,
     CBORError(serde_cbor::Error),
+    KernelError(kernel::error::Error),
 }
 
 impl Display for WireFormatError {
@@ -16,6 +17,7 @@ impl Display for WireFormatError {
             WireFormatError::SeekOtherError => f.write_str("cannot seek to other blob"),
             WireFormatError::ValueMissing => f.write_str("no value present"),
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
+            WireFormatError::KernelError(_) => f.write_str("Kernel error"),
         }
     }
 }
@@ -28,5 +30,13 @@ impl core::convert::From<serde_cbor::Error> for WireFormatError {
     #[allow(deprecated)]
     fn from(source: serde_cbor::Error) -> Self {
         WireFormatError::CBORError(source)
+    }
+}
+
+#[allow(unused_qualifications)]
+impl core::convert::From<kernel::error::Error> for WireFormatError {
+    #[allow(deprecated)]
+    fn from(source: kernel::error::Error) -> Self {
+        WireFormatError::KernelError(source)
     }
 }
