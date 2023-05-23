@@ -22,6 +22,7 @@ use crate::{
     types::Opaque,
     user_ptr::{UserSlicePtr, UserSlicePtrReader, UserSlicePtrWriter},
 };
+use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::{marker, mem, ptr};
 use macros::vtable;
@@ -288,9 +289,60 @@ impl RegularFile {
         })
     }
 
+    /// Allocate and return a vector containing the contents of the entire file
+    pub fn read_to_end(&self) -> Result<Vec<u8>> {
+        let file_size = self.get_file_size()?;
+        let mut buffer = Vec::try_with_capacity(file_size)?;
+        buffer.try_resize(file_size, 0)?;
+        self.read_with_offset(&mut buffer, 0)?;
+        Ok(buffer)
+    }
+
     /// Get the current file position
     pub fn get_pos(&self) -> u64 {
         self.0.pos()
+    }
+
+    fn get_file_size(&self) -> Result<usize> {
+        let mut buf = Vec::new();
+        unsafe {
+            // kernel_read_file expects a pointer to a "void *" buffer
+            let mut ptr_to_buf = buf.as_mut_ptr() as *mut core::ffi::c_void;
+            let mut file_size = 0;
+
+            // SAFETY: all the pointers to kernel_read_file are valid
+            let result = bindings::kernel_read_file(
+                self.0 .0.get(),
+                0,
+                &mut ptr_to_buf,
+                buf.len(),
+                &mut file_size,
+                bindings::kernel_read_file_id_READING_UNKNOWN,
+            );
+
+            // kernel_read_file returns the number of bytes read on success or negative on error.
+            if result < 0 {
+                return Err(Error::from_errno(result.try_into()?));
+            }
+            Ok(file_size)
+        }
+    }
+
+    fn update_pos(&self, where_to: SeekFrom) -> Result<u64> {
+        let (offset, whence): (i64, _) = match where_to {
+            SeekFrom::Start(off) => (off.try_into()?, bindings::SEEK_SET),
+            SeekFrom::Current(off) => (off, bindings::SEEK_CUR),
+            SeekFrom::End(off) => (off, bindings::SEEK_END),
+        };
+
+        let offset =
+            unsafe { bindings::generic_file_llseek(self.0 .0.get(), offset, whence.try_into()?) };
+        if offset < 0 {
+            return Err(Error::from_errno(offset.try_into()?));
+        }
+
+        // we just checked that offset is non negative
+        Ok(offset as u64)
     }
 }
 
