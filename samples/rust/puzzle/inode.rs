@@ -1,0 +1,107 @@
+// This contents of this file is taken from puzzlefs.rs (the userspace implementation)
+// It is named inode.rs instead puzzlefs.rs since the root of this kernel module already has that name
+
+use crate::puzzle::error::Result;
+use crate::puzzle::error::WireFormatError;
+use crate::puzzle::types as format;
+use crate::puzzle::types::{FileChunk, Ino, InodeAdditional, MetadataBlob};
+use alloc::vec::Vec;
+use kernel::prelude::{ENOENT, ENOTDIR};
+
+#[derive(Debug)]
+pub(crate) struct Inode {
+    pub(crate) inode: format::Inode,
+    pub(crate) mode: InodeMode,
+    pub(crate) additional: Option<InodeAdditional>,
+}
+
+pub(crate) struct PuzzleFS {
+    layers: Vec<format::MetadataBlob>,
+}
+
+impl PuzzleFS {
+    pub(crate) fn new(md: MetadataBlob) -> Result<Self> {
+        let mut v = Vec::new();
+        v.try_push(md)?;
+        Ok(PuzzleFS { layers: v })
+    }
+
+    // Temporary helper function used until PuzzleFs is integrated
+    pub(crate) fn find_inode(&mut self, ino: u64) -> Result<Inode> {
+        for layer in self.layers.iter_mut() {
+            if let Some(inode) = layer.find_inode(ino)? {
+                return Inode::new(layer, inode);
+            }
+        }
+        Err(WireFormatError::from_errno(ENOENT))
+    }
+}
+
+impl Inode {
+    fn new(layer: &mut MetadataBlob, inode: format::Inode) -> Result<Inode> {
+        let mode = match inode.mode {
+            format::InodeMode::Reg { offset } => {
+                let chunks = layer.read_file_chunks(offset)?;
+                InodeMode::File { chunks }
+            }
+            format::InodeMode::Dir { offset } => {
+                // TODO: implement something like collect_fallible (since try_collect already exists with another purpose)
+                let mut entries = Vec::from_iter_fallible(
+                    layer
+                        .read_dir_list(offset)?
+                        .entries
+                        .iter_mut()
+                        .map(|de| (de.name.try_clone().unwrap(), de.ino)),
+                )?;
+                // Unstable sort is used because it avoids memory allocation
+                // There should not be two directories with the same name, so stable sort doesn't have any advantage
+                entries.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+                InodeMode::Dir { entries }
+            }
+            _ => InodeMode::Other,
+        };
+
+        let additional = inode
+            .additional
+            .map(|additional_ref| layer.read_inode_additional(&additional_ref))
+            .transpose()?;
+
+        Ok(Inode {
+            inode,
+            mode,
+            additional,
+        })
+    }
+
+    pub(crate) fn dir_entries(&self) -> Result<&Vec<(Vec<u8>, Ino)>> {
+        match &self.mode {
+            InodeMode::Dir { entries } => Ok(entries),
+            _ => Err(WireFormatError::from_errno(ENOTDIR)),
+        }
+    }
+
+    pub(crate) fn dir_lookup(&self, name: &[u8]) -> Result<u64> {
+        let entries = self.dir_entries()?;
+        entries
+            .iter()
+            .find(|(cur, _)| cur == name)
+            .map(|(_, ino)| ino)
+            .cloned()
+            .ok_or_else(|| WireFormatError::from_errno(ENOENT))
+    }
+
+    pub(crate) fn file_len(&self) -> Result<u64> {
+        let chunks = match &self.mode {
+            InodeMode::File { chunks } => chunks,
+            _ => return Err(WireFormatError::from_errno(ENOTDIR)),
+        };
+        Ok(chunks.iter().map(|c| c.len).sum())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum InodeMode {
+    File { chunks: Vec<FileChunk> },
+    Dir { entries: Vec<(Vec<u8>, Ino)> },
+    Other,
+}
