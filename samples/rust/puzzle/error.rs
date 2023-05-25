@@ -1,3 +1,4 @@
+use alloc::collections::TryReserveError;
 use core::ffi::c_int;
 use core::fmt::{self, Display};
 use kernel::prelude::{EINVAL, ENOENT, ESPIPE};
@@ -21,6 +22,7 @@ pub(crate) enum WireFormatError {
     InvalidFsVerityData,
     CBORError(serde_cbor::Error),
     KernelError(kernel::error::Error),
+    TryReserveError(TryReserveError),
 }
 
 impl WireFormatError {
@@ -34,7 +36,7 @@ impl WireFormatError {
             WireFormatError::InvalidFsVerityData => kernel::error::Error::to_errno(EINVAL),
             WireFormatError::CBORError(..) => kernel::error::Error::to_errno(EINVAL),
             WireFormatError::KernelError(e) => kernel::error::Error::to_errno(*e),
-            WireFormatError::TryReserveError(e) => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::TryReserveError(_) => kernel::error::Error::to_errno(EINVAL),
         }
     }
 
@@ -54,6 +56,7 @@ impl Display for WireFormatError {
             WireFormatError::InvalidFsVerityData => f.write_str("invalid fs verity data"),
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
             WireFormatError::KernelError(_) => f.write_str("Kernel error"),
+            WireFormatError::TryReserveError(_) => f.write_str("TryReserveError"),
         }
     }
 }
@@ -74,5 +77,13 @@ impl core::convert::From<kernel::error::Error> for WireFormatError {
     #[allow(deprecated)]
     fn from(source: kernel::error::Error) -> Self {
         WireFormatError::KernelError(source)
+    }
+}
+
+#[allow(unused_qualifications)]
+impl core::convert::From<TryReserveError> for WireFormatError {
+    #[allow(deprecated)]
+    fn from(source: TryReserveError) -> Self {
+        WireFormatError::TryReserveError(source)
     }
 }
