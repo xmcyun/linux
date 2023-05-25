@@ -1,4 +1,6 @@
+use core::ffi::c_int;
 use core::fmt::{self, Display};
+use kernel::prelude::{EINVAL, ENOENT, ESPIPE};
 
 // TODO use String in error types (when it's available from the kernel)
 // TODO cannot derive Debug because serde_cbor::Error doesn't support it
@@ -19,6 +21,26 @@ pub(crate) enum WireFormatError {
     InvalidFsVerityData,
     CBORError(serde_cbor::Error),
     KernelError(kernel::error::Error),
+}
+
+impl WireFormatError {
+    pub(crate) fn to_errno(&self) -> c_int {
+        match self {
+            WireFormatError::LocalRefError => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::SeekOtherError => kernel::error::Error::to_errno(ESPIPE),
+            WireFormatError::ValueMissing => kernel::error::Error::to_errno(ENOENT),
+            WireFormatError::InvalidImageSchema => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::InvalidImageVersion => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::InvalidFsVerityData => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::CBORError(..) => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::KernelError(e) => kernel::error::Error::to_errno(*e),
+            WireFormatError::TryReserveError(e) => kernel::error::Error::to_errno(EINVAL),
+        }
+    }
+
+    pub(crate) fn from_errno(errno: kernel::error::Error) -> Self {
+        Self::KernelError(errno)
+    }
 }
 
 impl Display for WireFormatError {
