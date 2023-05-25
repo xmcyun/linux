@@ -1,2 +1,3 @@
 pub(crate) mod error;
-mod types;
+pub(crate) mod inode;
+pub(crate) mod types;
