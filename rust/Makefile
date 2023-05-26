@@ -13,7 +13,7 @@ always-$(CONFIG_RUST) += libserde_derive.so libmacros.so
 no-clean-files += libserde_derive.so libmacros.so
 
 always-$(CONFIG_RUST) += bindings/bindings_generated.rs bindings/bindings_helpers_generated.rs
-obj-$(CONFIG_RUST) += alloc.o bindings.o serde.o serde_cbor.o kernel.o
+obj-$(CONFIG_RUST) += alloc.o bindings.o serde.o serde_cbor.o hex.o kernel.o
 always-$(CONFIG_RUST) += exports_alloc_generated.h exports_bindings_generated.h \
     exports_kernel_generated.h
 
@@ -136,6 +136,15 @@ serde_cbor-flags := \
     --cfg 'feature="kernel_alloc"' \
     --extern alloc \
     --extern serde
+
+hex-skip_flags := \
+    --edition=2021 \
+    -Drust_2018_idioms \
+    -Dunreachable_pub
+
+hex-flags := \
+    --edition=2018 \
+    -Amissing_docs
 
 quiet_cmd_rustdoc = RUSTDOC $(if $(rustdoc_host),H, ) $<
       cmd_rustdoc = \
@@ -589,12 +598,18 @@ $(obj)/serde_cbor.o: private rustc_target_flags = $(serde_cbor-flags)
 $(obj)/serde_cbor.o: $(src)/serde_cbor/lib.rs $(obj)/compiler_builtins.o FORCE
 	$(call if_changed_dep,rustc_library)
 
+$(obj)/hex.o: private skip_clippy = 1
+$(obj)/hex.o: private skip_flags = $(hex-skip_flags)
+$(obj)/hex.o: private rustc_target_flags = $(hex-flags)
+$(obj)/hex.o: $(src)/hex/lib.rs $(obj)/compiler_builtins.o FORCE
+	$(call if_changed_dep,rustc_library)
+
 $(obj)/kernel.o: private rustc_target_flags = --extern alloc \
     --extern build_error --extern macros --extern bindings --extern uapi \
-    --extern serde --extern serde_derive --extern serde_cbor
+    --extern serde --extern serde_derive --extern serde_cbor --extern hex
 $(obj)/kernel.o: $(src)/kernel/lib.rs $(obj)/alloc.o $(obj)/build_error.o \
     $(obj)/libmacros.so $(obj)/bindings.o $(obj)/uapi.o \
-    $(obj)/serde.o $(obj)/libserde_derive.so $(obj)/serde_cbor.o FORCE
+    $(obj)/serde.o $(obj)/libserde_derive.so $(obj)/serde_cbor.o $(obj)/hex.o FORCE
 	$(call if_changed_dep,rustc_library)
 
 endif # CONFIG_RUST
