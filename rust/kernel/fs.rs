@@ -775,7 +775,7 @@ impl SuperParams {
 ///
 /// The superblock is a newly-created one and this is the only active pointer to it.
 pub struct NewSuperBlock<'a, T: Type + ?Sized, S = NeedsInit> {
-    sb: &'a mut SuperBlock<T>,
+    pub sb: &'a mut SuperBlock<T>,
 
     // This also forces `'a` to be invariant.
     _p: PhantomData<&'a mut &'a S>,
