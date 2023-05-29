@@ -41,6 +41,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "kernel_alloc")]
+use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
@@ -186,7 +188,7 @@ fn val(c: u8, idx: usize) -> Result<u8, FromHexError> {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "kernel_alloc"))]
 impl FromHex for Vec<u8> {
     type Error = FromHexError;
 
@@ -196,10 +198,19 @@ impl FromHex for Vec<u8> {
             return Err(FromHexError::OddLength);
         }
 
-        hex.chunks(2)
+        #[cfg(not(feature = "kernel_alloc"))]
+        return hex
+            .chunks(2)
             .enumerate()
             .map(|(i, pair)| Ok(val(pair[0], 2 * i)? << 4 | val(pair[1], 2 * i + 1)?))
-            .collect()
+            .collect();
+        #[cfg(feature = "kernel_alloc")]
+        return Vec::from_iter_fallible(
+            hex.chunks(2)
+                .enumerate()
+                .map(|(i, pair)| Ok(val(pair[0], 2 * i)? << 4 | val(pair[1], 2 * i + 1)?)),
+        )?
+        .process_results();
     }
 }
 
@@ -294,7 +305,7 @@ pub fn encode_upper<T: AsRef<[u8]>>(data: T) -> String {
 /// assert_eq!(hex::decode("123"), Err(hex::FromHexError::OddLength));
 /// assert!(hex::decode("foo").is_err());
 /// ```
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "kernel_alloc"))]
 pub fn decode<T: AsRef<[u8]>>(data: T) -> Result<Vec<u8>, FromHexError> {
     FromHex::from_hex(data)
 }
