@@ -661,6 +661,27 @@ impl<T> Vec<T> {
     }
 }
 
+impl<T,E: core::convert::From<TryReserveError>> Vec<Result<T,E>> {
+    /// Iterates through the vector, consuming self, unwrapping the individual values in each
+    /// Result and creating a new vector with them. If there's any error value, it returns it
+    /// immediately
+    #[stable(feature = "rust1", since = "1.0.0")]
+    pub fn process_results(self) -> Result<Vec<T>,E> {
+        let mut vec = Vec::new();
+        for value in self {
+            match value {
+                Ok(v) => {
+                    vec.try_push(v)?;
+                },
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+        Ok(vec)
+    }
+}
+
 impl<T, A: Allocator> Vec<T, A> {
     /// Constructs a new, empty `Vec<T, A>`.
     ///
