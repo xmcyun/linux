@@ -13,7 +13,6 @@ use kernel::{
 
 mod puzzle;
 use puzzle::inode::{Inode, InodeMode, PuzzleFS};
-use puzzle::types::MetadataBlob;
 
 use kernel::fs::{DEntry, INodeParams, NeedsRoot, NewSuperBlock, RootDEntry};
 
@@ -67,7 +66,7 @@ fn puzzlefs_populate_dir(
         return Err(E2BIG);
     }
 
-    let inode = Arc::try_new(pfs.find_inode(ino).map_err(|_| EINVAL)?)?;
+    let inode = Arc::try_new(pfs.find_inode(ino)?)?;
     match &inode.mode {
         InodeMode::File { chunks: _ } => {
             let params = INodeParams {
@@ -152,19 +151,17 @@ impl fs::Type for PuzzleFs {
             },
         )?;
 
-        let file = file::RegularFile::from_path_in_root_mnt(
-            &arc_vfs_mount,
-            c_str!("997eed138af30d187e87d682dd2ae9f240fae78f668907a0519460b397c82467"),
-            file::flags::O_RDONLY.try_into().unwrap(),
-            0,
-        )?;
+        let puzzlefs = PuzzleFS::open(
+            arc_vfs_mount,
+            c_str!("2d6602d678140540dc7e96de652a76a8b16e8aca190bae141297bcffdcae901b"),
+        );
 
-        // TODO: figure out how to go from WireFormatError to kernel::error::Error
-        let metadata = MetadataBlob::new(file).map_err(|_| EINVAL)?;
-        pr_info!("number of inodes {:?}\n", metadata.inode_count);
+        if let Err(ref e) = puzzlefs {
+            pr_info!("error opening puzzlefs {e}\n");
+        }
 
-        let mut puzzlefs = PuzzleFS::new(metadata).map_err(|_| EINVAL)?;
-        let root_inode = Arc::try_new(puzzlefs.find_inode(1).map_err(|_| EINVAL)?)?;
+        let mut puzzlefs = puzzlefs?;
+        let root_inode = Arc::try_new(puzzlefs.find_inode(1)?)?;
 
         let root = try_new_populated_root_puzzlefs_dentry(&sb, &mut puzzlefs, root_inode)?;
         let sb = sb.init_root(root)?;

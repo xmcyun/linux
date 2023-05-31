@@ -3,10 +3,15 @@
 
 use crate::puzzle::error::Result;
 use crate::puzzle::error::WireFormatError;
+use crate::puzzle::oci::Image;
 use crate::puzzle::types as format;
+use crate::puzzle::types::Digest;
 use crate::puzzle::types::{FileChunk, Ino, InodeAdditional, MetadataBlob};
 use alloc::vec::Vec;
+use kernel::mount::Vfsmount;
 use kernel::prelude::{ENOENT, ENOTDIR};
+use kernel::str::CStr;
+use kernel::sync::Arc;
 
 #[derive(Debug)]
 pub(crate) struct Inode {
@@ -17,17 +22,25 @@ pub(crate) struct Inode {
 }
 
 pub(crate) struct PuzzleFS {
+    pub(crate) oci: Image,
     layers: Vec<format::MetadataBlob>,
 }
 
 impl PuzzleFS {
-    pub(crate) fn new(md: MetadataBlob) -> Result<Self> {
-        let mut v = Vec::new();
-        v.try_push(md)?;
-        Ok(PuzzleFS { layers: v })
+    pub(crate) fn open(vfsmount: Arc<Vfsmount>, rootfs_path: &CStr) -> Result<PuzzleFS> {
+        let oci = Image::open(vfsmount)?;
+        let rootfs = oci.open_rootfs_blob(rootfs_path)?;
+
+        let layers =
+            Vec::from_iter_fallible(rootfs.metadatas.iter().map(|md| -> Result<MetadataBlob> {
+                let digest = Digest::try_from(md)?;
+                oci.open_metadata_blob(&digest)
+            }))?
+            .process_results()?;
+
+        Ok(PuzzleFS { oci, layers })
     }
 
-    // Temporary helper function used until PuzzleFs is integrated
     pub(crate) fn find_inode(&mut self, ino: u64) -> Result<Inode> {
         for layer in self.layers.iter_mut() {
             if let Some(inode) = layer.find_inode(ino)? {
