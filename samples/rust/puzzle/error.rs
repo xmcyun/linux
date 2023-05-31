@@ -23,6 +23,7 @@ pub(crate) enum WireFormatError {
     CBORError(serde_cbor::Error),
     KernelError(kernel::error::Error),
     TryReserveError(TryReserveError),
+    HexError(hex::FromHexError),
 }
 
 impl WireFormatError {
@@ -37,6 +38,7 @@ impl WireFormatError {
             WireFormatError::CBORError(..) => kernel::error::Error::to_errno(EINVAL),
             WireFormatError::KernelError(e) => kernel::error::Error::to_errno(*e),
             WireFormatError::TryReserveError(_) => kernel::error::Error::to_errno(EINVAL),
+            WireFormatError::HexError(_) => kernel::error::Error::to_errno(EINVAL),
         }
     }
 
@@ -57,6 +59,7 @@ impl Display for WireFormatError {
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
             WireFormatError::KernelError(_) => f.write_str("Kernel error"),
             WireFormatError::TryReserveError(_) => f.write_str("TryReserveError"),
+            WireFormatError::HexError(_) => f.write_str("HexError"),
         }
     }
 }
@@ -85,5 +88,13 @@ impl core::convert::From<TryReserveError> for WireFormatError {
     #[allow(deprecated)]
     fn from(source: TryReserveError) -> Self {
         WireFormatError::TryReserveError(source)
+    }
+}
+
+#[allow(unused_qualifications)]
+impl core::convert::From<hex::FromHexError> for WireFormatError {
+    #[allow(deprecated)]
+    fn from(source: hex::FromHexError) -> Self {
+        WireFormatError::HexError(source)
     }
 }
