@@ -40,7 +40,7 @@ impl Display for WireFormatError {
             WireFormatError::SeekOtherError => f.write_str("cannot seek to other blob"),
             WireFormatError::ValueMissing => f.write_str("no value present"),
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
-            WireFormatError::KernelError(_) => f.write_str("Kernel error"),
+            WireFormatError::KernelError(e) => write!(f, "Kernel error {:?}", e.to_errno()),
             WireFormatError::TryReserveError(_) => f.write_str("TryReserveError"),
             WireFormatError::HexError(_) => f.write_str("HexError"),
         }
