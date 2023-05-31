@@ -57,7 +57,7 @@ impl Display for WireFormatError {
             WireFormatError::InvalidImageVersion => f.write_str("invalid image version"),
             WireFormatError::InvalidFsVerityData => f.write_str("invalid fs verity data"),
             WireFormatError::CBORError(_) => f.write_str("CBOR error"),
-            WireFormatError::KernelError(_) => f.write_str("Kernel error"),
+            WireFormatError::KernelError(e) => write!(f, "Kernel error {:?}", e.to_errno()),
             WireFormatError::TryReserveError(_) => f.write_str("TryReserveError"),
             WireFormatError::HexError(_) => f.write_str("HexError"),
         }
