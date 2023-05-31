@@ -81,3 +81,11 @@ impl core::convert::From<hex::FromHexError> for WireFormatError {
         WireFormatError::HexError(source)
     }
 }
+
+#[allow(unused_qualifications)]
+impl core::convert::From<WireFormatError> for kernel::error::Error {
+    #[allow(deprecated)]
+    fn from(source: WireFormatError) -> Self {
+        kernel::error::Error::from_errno(source.to_errno())
+    }
+}
