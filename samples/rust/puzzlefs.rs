@@ -17,13 +17,13 @@ use puzzle::inode::{Inode, InodeMode, PuzzleFS};
 use kernel::fs::{DEntry, INodeParams, NeedsRoot, NewSuperBlock, RootDEntry};
 
 module_fs! {
-    type: PuzzleFs,
+    type: PuzzleFsModule,
     name: "puzzlefs",
     author: "Ariel Miculas",
     license: "GPL",
 }
 
-struct PuzzleFs;
+struct PuzzleFsModule;
 
 #[derive(Debug)]
 struct PuzzlefsInfo {
@@ -31,7 +31,7 @@ struct PuzzlefsInfo {
 }
 
 #[vtable]
-impl fs::Context<Self> for PuzzleFs {
+impl fs::Context<Self> for PuzzleFsModule {
     type Data = ();
 
     kernel::define_fs_params! {(),
@@ -55,9 +55,9 @@ impl fs::Context<Self> for PuzzleFs {
 }
 
 fn puzzlefs_populate_dir(
-    sb: &NewSuperBlock<'_, PuzzleFs, NeedsRoot>,
+    sb: &NewSuperBlock<'_, PuzzleFsModule, NeedsRoot>,
     pfs: &mut PuzzleFS,
-    parent: &DEntry<PuzzleFs>,
+    parent: &DEntry<PuzzleFsModule>,
     ino: u64,
     name: &CStr,
     recursion: usize,
@@ -110,10 +110,10 @@ fn puzzlefs_populate_dir(
 
 /// Creates a new root dentry populated with the given entries.
 fn try_new_populated_root_puzzlefs_dentry(
-    sb: &NewSuperBlock<'_, PuzzleFs, NeedsRoot>,
+    sb: &NewSuperBlock<'_, PuzzleFsModule, NeedsRoot>,
     pfs: &mut PuzzleFS,
-    root_value: <PuzzleFs as fs::Type>::INodeData,
-) -> Result<RootDEntry<PuzzleFs>> {
+    root_value: <PuzzleFsModule as fs::Type>::INodeData,
+) -> Result<RootDEntry<PuzzleFsModule>> {
     let root_inode = sb.sb.try_new_dcache_dir_inode(INodeParams {
         mode: 0o755,
         ino: root_value.inode.ino,
@@ -125,7 +125,7 @@ fn try_new_populated_root_puzzlefs_dentry(
     Ok(root)
 }
 
-impl fs::Type for PuzzleFs {
+impl fs::Type for PuzzleFsModule {
     type Context = Self;
     // this is Arc so it can be cloned in puzzlefs_populate_dir
     type INodeData = Arc<Inode>;
