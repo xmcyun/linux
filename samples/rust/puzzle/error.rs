@@ -11,6 +11,9 @@ use kernel::prelude::{EINVAL, ENOENT, ESPIPE};
 // ERROR: modpost: "_RNvXs0_NtCsalintqihKyV_10serde_cbor5errorNtB5_5ErrorNtNtCs3yuwAp0waWO_4core3fmt5Debug3fmt" [samples/rust/puzzlefs.ko] undefined!
 // make[1]: *** [scripts/Makefile.modpost:136: Module.symvers] Error 1
 // make: *** [Makefile:1990: modpost] Error 2
+// Demangled symbol:
+// $ rustfilt _RNvXs0_NtCsalintqihKyV_10serde_cbor5errorNtB5_5ErrorNtNtCs3yuwAp0waWO_4core3fmt5Debug3fmt
+// <serde_cbor::error::Error as core::fmt::Debug>::fmt
 
 // #[derive(Debug)]
 pub(crate) enum WireFormatError {
