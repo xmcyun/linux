@@ -8,7 +8,10 @@ use serde_derive::Deserialize;
 mod cbor_helpers;
 use crate::puzzle::error::Result;
 pub(crate) use cbor_helpers::{cbor_get_array_size, cbor_size_of_list_header};
+use core::fmt;
+use hex::{encode_hex_iter, FromHexError};
 use kernel::file;
+use kernel::str::CStr;
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct InodeAdditional {
@@ -32,6 +35,8 @@ pub(crate) struct MetadataBlob {
     pub(crate) inode_count: usize,
 }
 
+pub(crate) const SHA256_BLOCK_SIZE: usize = 32;
+
 fn read_one_from_slice<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Result<T> {
     // serde complains when we leave extra bytes on the wire, which we often want to do. as a
     // hack, we create a streaming deserializer for the type we're about to read, and then only
@@ -39,6 +44,23 @@ fn read_one_from_slice<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Result<T> {
     let mut iter = serde_cbor::Deserializer::from_slice(bytes).into_iter::<T>();
     let v = iter.next().transpose()?;
     v.ok_or(WireFormatError::ValueMissing)
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct Rootfs {
+    pub(crate) metadatas: Vec<BlobRef>,
+    // TODO: deserialize fs_verity_data, for the moment BTreeMap is not supported
+    #[allow(dead_code)]
+    pub(crate) fs_verity_data: (),
+    #[allow(dead_code)]
+    pub(crate) manifest_version: u64,
+}
+
+impl Rootfs {
+    pub(crate) fn open(file: file::RegularFile) -> Result<Rootfs> {
+        let buffer = file.read_to_end()?;
+        read_one_from_slice(&buffer)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -173,6 +195,59 @@ impl MetadataBlob {
         }
 
         Ok(None)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Digest([u8; SHA256_BLOCK_SIZE]);
+
+impl Digest {
+    pub(crate) fn underlying(&self) -> [u8; SHA256_BLOCK_SIZE] {
+        let mut dest = [0_u8; SHA256_BLOCK_SIZE];
+        dest.copy_from_slice(&self.0);
+        dest
+    }
+}
+
+impl fmt::Display for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut hex_string =
+            Vec::from_iter_fallible(encode_hex_iter(&self.underlying())).map_err(|_| fmt::Error)?;
+        // append NUL character
+        hex_string.try_push(0).map_err(|_| fmt::Error)?;
+        let hex_string = CStr::from_bytes_with_nul(&hex_string).map_err(|_| fmt::Error)?;
+        write!(f, "{}", hex_string)
+    }
+}
+
+impl TryFrom<&CStr> for Digest {
+    type Error = FromHexError;
+    fn try_from(s: &CStr) -> kernel::error::Result<Self, Self::Error> {
+        let digest = hex::decode(s)?;
+        let digest: [u8; SHA256_BLOCK_SIZE] = digest
+            .try_into()
+            .map_err(|_| FromHexError::InvalidStringLength)?;
+        Ok(Digest(digest))
+    }
+}
+
+impl TryFrom<BlobRef> for Digest {
+    type Error = WireFormatError;
+    fn try_from(v: BlobRef) -> kernel::error::Result<Self, Self::Error> {
+        match v.kind {
+            BlobRefKind::Other { digest } => Ok(Digest(digest)),
+            BlobRefKind::Local => Err(WireFormatError::LocalRefError),
+        }
+    }
+}
+
+impl TryFrom<&BlobRef> for Digest {
+    type Error = WireFormatError;
+    fn try_from(v: &BlobRef) -> kernel::error::Result<Self, Self::Error> {
+        match v.kind {
+            BlobRefKind::Other { digest } => Ok(Digest(digest)),
+            BlobRefKind::Local => Err(WireFormatError::LocalRefError),
+        }
     }
 }
 
