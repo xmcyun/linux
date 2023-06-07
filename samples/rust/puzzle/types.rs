@@ -148,28 +148,28 @@ impl MetadataBlob {
         })
     }
 
-    pub(crate) fn seek_ref(&mut self, r: &BlobRef) -> Result<u64> {
+    pub(crate) fn seek_ref(&self, r: &BlobRef) -> Result<u64> {
         match r.kind {
             BlobRefKind::Other { .. } => Err(WireFormatError::SeekOtherError),
             BlobRefKind::Local => Ok(r.offset),
         }
     }
 
-    pub(crate) fn read_file_chunks(&mut self, offset: u64) -> Result<Vec<FileChunk>> {
+    pub(crate) fn read_file_chunks(&self, offset: u64) -> Result<Vec<FileChunk>> {
         read_one_from_slice::<FileChunkList>(&self.mmapped_region[offset as usize..])
             .map(|cl| cl.chunks)
     }
 
-    pub(crate) fn read_dir_list(&mut self, offset: u64) -> Result<DirList> {
+    pub(crate) fn read_dir_list(&self, offset: u64) -> Result<DirList> {
         read_one_from_slice(&self.mmapped_region[offset as usize..])
     }
 
-    pub(crate) fn read_inode_additional(&mut self, r: &BlobRef) -> Result<InodeAdditional> {
+    pub(crate) fn read_inode_additional(&self, r: &BlobRef) -> Result<InodeAdditional> {
         let offset = self.seek_ref(r)? as usize;
         read_one_from_slice(&self.mmapped_region[offset..])
     }
 
-    pub(crate) fn find_inode(&mut self, ino: Ino) -> Result<Option<Inode>> {
+    pub(crate) fn find_inode(&self, ino: Ino) -> Result<Option<Inode>> {
         let mut left = 0;
         let mut right = self.inode_count;
 

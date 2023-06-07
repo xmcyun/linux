@@ -3,7 +3,6 @@
 //! Rust file system sample.
 
 use kernel::module_fs;
-use kernel::mount::Vfsmount;
 use kernel::prelude::*;
 use kernel::{
     c_str, file, fs,
@@ -12,7 +11,7 @@ use kernel::{
 };
 
 mod puzzle;
-use puzzle::inode::{Inode, InodeMode, PuzzleFS};
+use puzzle::inode::{file_read, Inode, InodeMode, PuzzleFS};
 
 use kernel::fs::{DEntry, INodeParams, NeedsRoot, NewSuperBlock, RootDEntry};
 
@@ -27,7 +26,7 @@ struct PuzzleFsModule;
 
 #[derive(Debug)]
 struct PuzzlefsInfo {
-    vfs_mount: Arc<Vfsmount>,
+    puzzlefs: Arc<PuzzleFS>,
 }
 
 #[vtable]
@@ -56,7 +55,7 @@ impl fs::Context<Self> for PuzzleFsModule {
 
 fn puzzlefs_populate_dir(
     sb: &NewSuperBlock<'_, PuzzleFsModule, NeedsRoot>,
-    pfs: &mut PuzzleFS,
+    pfs: &PuzzleFS,
     parent: &DEntry<PuzzleFsModule>,
     ino: u64,
     name: &CStr,
@@ -111,7 +110,7 @@ fn puzzlefs_populate_dir(
 /// Creates a new root dentry populated with the given entries.
 fn try_new_populated_root_puzzlefs_dentry(
     sb: &NewSuperBlock<'_, PuzzleFsModule, NeedsRoot>,
-    pfs: &mut PuzzleFS,
+    pfs: &PuzzleFS,
     root_value: <PuzzleFsModule as fs::Type>::INodeData,
 ) -> Result<RootDEntry<PuzzleFsModule>> {
     let root_inode = sb.sb.try_new_dcache_dir_inode(INodeParams {
@@ -136,23 +135,8 @@ impl fs::Type for PuzzleFsModule {
     const DCACHE_BASED: bool = true;
 
     fn fill_super(_data: (), sb: fs::NewSuperBlock<'_, Self>) -> Result<&fs::SuperBlock<Self>> {
-        let vfs_mount = Vfsmount::new_private_mount(c_str!("/home/puzzlefs_oci"))?;
-        pr_info!("vfs_mount {:?}\n", vfs_mount);
-
-        let arc_vfs_mount = Arc::try_new(vfs_mount)?;
-
-        let sb = sb.init(
-            Box::try_new(PuzzlefsInfo {
-                vfs_mount: arc_vfs_mount.clone(),
-            })?,
-            &fs::SuperParams {
-                magic: 0x72757374,
-                ..fs::SuperParams::DEFAULT
-            },
-        )?;
-
         let puzzlefs = PuzzleFS::open(
-            arc_vfs_mount,
+            c_str!("/home/puzzlefs_oci"),
             c_str!("2d6602d678140540dc7e96de652a76a8b16e8aca190bae141297bcffdcae901b"),
         );
 
@@ -160,10 +144,21 @@ impl fs::Type for PuzzleFsModule {
             pr_info!("error opening puzzlefs {e}\n");
         }
 
-        let mut puzzlefs = puzzlefs?;
+        let puzzlefs = Arc::try_new(puzzlefs?)?;
+
+        let sb = sb.init(
+            Box::try_new(PuzzlefsInfo {
+                puzzlefs: puzzlefs.clone(),
+            })?,
+            &fs::SuperParams {
+                magic: 0x72757374,
+                ..fs::SuperParams::DEFAULT
+            },
+        )?;
+
         let root_inode = Arc::try_new(puzzlefs.find_inode(1)?)?;
 
-        let root = try_new_populated_root_puzzlefs_dentry(&sb, &mut puzzlefs, root_inode)?;
+        let root = try_new_populated_root_puzzlefs_dentry(&sb, &puzzlefs, root_inode)?;
         let sb = sb.init_root(root)?;
         Ok(sb)
     }
@@ -175,34 +170,32 @@ struct FsFile;
 impl file::Operations for FsFile {
     // must be the same as INodeData
     type OpenData = Arc<Inode>;
+    // must be the same as fs::Type::Data
+    // TODO: find a way to enforce this
     type FSData = Box<PuzzlefsInfo>;
     // this is an Arc because Data must be ForeignOwnable and the only implementors of it are Box,
-    // Arc and (); we cannot pass a reference to read, so we share Vfsmount using and Arc
-    type Data = Arc<Vfsmount>;
+    // Arc and (); we cannot pass a reference to the read callback, so we share PuzzleFS using Arc
+    type Data = Arc<PuzzleFS>;
 
     fn open(
         fs_info: &PuzzlefsInfo,
         _context: &Self::OpenData,
         _file: &file::File,
     ) -> Result<Self::Data> {
-        Ok(fs_info.vfs_mount.clone())
+        Ok(fs_info.puzzlefs.clone())
     }
 
     fn read(
-        data: ArcBorrow<'_, Vfsmount>,
-        _file: &file::File,
+        data: ArcBorrow<'_, PuzzleFS>,
+        file: &file::File,
         writer: &mut impl IoBufferWriter,
         offset: u64,
     ) -> Result<usize> {
+        let inode = file.inode::<PuzzleFsModule>().ok_or(EINVAL)?.fs_data();
         let mut buf = Vec::try_with_capacity(writer.len())?;
         buf.try_resize(writer.len(), 0)?;
-        let file = file::RegularFile::from_path_in_root_mnt(
-            &data,
-            c_str!("data"),
-            file::flags::O_RDONLY.try_into().unwrap(),
-            0,
-        )?;
-        let nr_bytes_read = file.read_with_offset(&mut buf[..], offset)?;
-        file::read_from_slice(&buf[..nr_bytes_read], writer, 0)
+        let read = file_read(&data.oci, inode, offset as usize, &mut buf)?;
+        buf.truncate(read);
+        file::read_from_slice(&buf, writer, 0)
     }
 }
