@@ -353,14 +353,15 @@ impl RegularFile {
         }
     }
 
-    pub fn update_pos(&self, offset: usize) -> Result<u64> {
-        let offset = unsafe {
-            bindings::generic_file_llseek(
-                self.0 .0.get(),
-                offset.try_into()?,
-                bindings::SEEK_CUR.try_into()?,
-            )
+    fn update_pos(&self, where_to: SeekFrom) -> Result<u64> {
+        let (offset, whence): (i64, _) = match where_to {
+            SeekFrom::Start(off) => (off.try_into()?, bindings::SEEK_SET),
+            SeekFrom::Current(off) => (off, bindings::SEEK_CUR),
+            SeekFrom::End(off) => (off, bindings::SEEK_END),
         };
+
+        let offset =
+            unsafe { bindings::generic_file_llseek(self.0 .0.get(), offset, whence.try_into()?) };
         if offset < 0 {
             return Err(Error::from_errno(offset.try_into()?));
         }
@@ -373,7 +374,7 @@ impl RegularFile {
 impl Read for &mut RegularFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let nr_bytes_read = self.read_with_offset(buf, self.get_pos())?;
-        self.update_pos(nr_bytes_read);
+        self.update_pos(SeekFrom::Current(nr_bytes_read.try_into()?))?;
         Ok(nr_bytes_read)
     }
 }
