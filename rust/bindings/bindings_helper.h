@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/fs_parser.h>
+#include <linux/namei.h>
 #include <linux/cred.h>
 #include <linux/poll.h>
 #include <linux/uio.h>
