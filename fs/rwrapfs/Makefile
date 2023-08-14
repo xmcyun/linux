@@ -5,8 +5,8 @@ KDIR ?= ../../
 EXTRA_CFLAGS = -g -DDEBUG
 
 default:
-	$(MAKE) -C $(KDIR) LLVM=1 M=$$PWD
+	$(MAKE) -C $(KDIR) LLVM=1 M=$(PWD) modules
 
 clean:
-	rm -rf *.o *.mod *.mod.c *.cmd .*.cmd *.ko modules.order Module.symvers
+	$(MAKE) -C $(KDIR) LLVM=1 M=$(PWD) clean
 

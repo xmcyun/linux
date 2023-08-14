@@ -8,8 +8,8 @@ use kernel::module_fs;
 
 module_fs! {
     type: RustFs,
-    name: "rust_wrapfs",
-    author: "Rust for Linux Contributors",
+    name: "rwrapfs",
+    author: "xieminsheng",
     license: "GPL",
 }
 
@@ -43,7 +43,7 @@ impl fs::Type for RustFs {
     type Context = Self;
     type INodeData = &'static [u8];
     const SUPER_TYPE: fs::Super = fs::Super::Independent;
-    const NAME: &'static CStr = c_str!("rust_wrapfs");
+    const NAME: &'static CStr = c_str!("rwrapfs");
     const FLAGS: i32 = fs::flags::USERNS_MOUNT;
     const DCACHE_BASED: bool = true;
 
@@ -51,26 +51,26 @@ impl fs::Type for RustFs {
         let sb = sb.init(
             (),
             &fs::SuperParams {
-                magic: 0x72757374,
+                magic: 0x08041234,
                 ..fs::SuperParams::DEFAULT
             },
         )?;
         let root = sb.try_new_populated_root_dentry(
             &[],
             kernel::fs_entries![
-                file("test1", 0o600, "abc\n".as_bytes(), FsFile),
-                file("test2", 0o600, "def\n".as_bytes(), FsFile),
-                char("test3", 0o600, [].as_slice(), (10, 125)),
-                sock("test4", 0o755, [].as_slice()),
-                fifo("test5", 0o755, [].as_slice()),
-                block("test6", 0o755, [].as_slice(), (1, 1)),
+                file("vivo_file1", 0o600, "vivo_file1\n".as_bytes(), FsFile),
+                file("vivo_file2", 0o600, "vivo_file2\n".as_bytes(), FsFile),
+                // char("test3", 0o600, [].as_slice(), (10, 125)),
+                // sock("test4", 0o755, [].as_slice()),
+                // fifo("test5", 0o755, [].as_slice()),
+                // block("test6", 0o755, [].as_slice(), (1, 1)),
                 dir(
-                    "dir1",
+                    "vivo_dir1",
                     0o755,
                     [].as_slice(),
                     [
-                        file("test1", 0o600, "abc\n".as_bytes(), FsFile),
-                        file("test2", 0o600, "def\n".as_bytes(), FsFile),
+                        file("vivo_file3", 0o600, "vivo_file3\n".as_bytes(), FsFile),
+                        file("vivo_file4", 0o600, "vivo_file4\n".as_bytes(), FsFile),
                     ]
                 ),
             ],
